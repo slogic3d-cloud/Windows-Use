@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ZERO 2.0 — S-LOGIC 3D</title>
+<style>
+  :root {
+    --bg: #050a0e;
+    --bg2: #0a1520;
+    --bg3: #0d1e2e;
+    --panel: rgba(10,25,40,0.85);
+    --border: rgba(0,220,180,0.12);
+    --teal: #00ddb4;
+    --teal2: #00b894;
+    --teal-dim: rgba(0,221,180,0.15);
+    --teal-glow: rgba(0,221,180,0.35);
+    --text: #e8f4f2;
+    --text2: #7ab8b0;
+    --text3: #3d7a72;
+    --red: #ff4d6d;
+    --yellow: #ffd166;
+    --green: #06d6a0;
+    --sidebar-w: 64px;
+    --right-w: 300px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'SF Pro Display', -apple-system, 'Segoe UI', sans-serif; }
+
+  /* ── LAYOUT ── */
+  #app { display: grid; grid-template-columns: var(--sidebar-w) 1fr var(--right-w); height: 100vh; }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 20px 0; gap: 8px; z-index: 10;
+  }
+  .logo-orb {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 2px solid var(--teal); position: relative;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+  }
+  .logo-orb::before {
+    content: ''; position: absolute; inset: 4px; border-radius: 50%;
+    background: radial-gradient(circle, var(--teal) 0%, transparent 70%);
+    animation: orb-pulse 3s ease-in-out infinite;
+  }
+  @keyframes orb-pulse {
+    0%, 100% { opacity: 0.6; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+  .nav-btn {
+    width: 40px; height: 40px; border-radius: 10px;
+    border: 1px solid transparent; background: transparent;
+    color: var(--text3); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s; font-size: 18px;
+  }
+  .nav-btn:hover, .nav-btn.active {
+    background: var(--teal-dim); border-color: var(--border);
+    color: var(--teal);
+  }
+  .sidebar-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--teal); margin-top: auto; margin-bottom: 8px;
+    box-shadow: 0 0 8px var(--teal);
+    animation: dot-pulse 2s ease-in-out infinite;
+  }
+  @keyframes dot-pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+  /* ── MAIN ── */
+  #main {
+    display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+    position: relative;
+  }
+  #main-top {
+    flex: 0 0 auto; padding: 24px 32px 0;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .status-badge {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--teal);
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--teal); box-shadow: 0 0 6px var(--teal);
+    animation: dot-pulse 2s ease-in-out infinite;
+  }
+  .status-dot.offline { background: var(--text3); box-shadow: none; animation: none; }
+  .status-dot.thinking { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+  .status-dot.listening { background: var(--red); box-shadow: 0 0 8px var(--red); animation: dot-pulse .8s infinite; }
+
+  /* ── HERO TEXT ── */
+  #hero { padding: 16px 32px 0; }
+  #hero h1 { font-size: clamp(28px,3.5vw,48px); font-weight: 600; line-height: 1.15; color: var(--text); }
+  #hero h1 span { color: var(--teal); }
+  #hero p { font-size: 14px; color: var(--text2); margin-top: 8px; max-width: 340px; }
+
+  /* ── MODEL STATUS ── */
+  .model-card {
+    margin: 12px 32px 0;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 16px;
+    display: inline-flex; align-items: center; gap: 12px;
+    max-width: 200px;
+  }
+  .model-spinner {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 2px solid var(--teal-dim); border-top-color: var(--teal);
+    animation: spin 1.5s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .model-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing:.07em; }
+  .model-value { font-size: 13px; font-weight: 700; color: var(--teal); }
+
+  /* ── ORB AREA ── */
+  #orb-area {
+    flex: 1 1 auto; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 0;
+  }
+  #orb-canvas { display: block; }
+  #status-text {
+    position: absolute; bottom: calc(50% - 180px);
+    font-size: 15px; color: var(--teal); letter-spacing: 0.05em;
+    opacity: 0; transition: opacity .4s;
+    text-shadow: 0 0 12px var(--teal);
+  }
+  #status-text.visible { opacity: 1; }
+
+  /* ── WAVEFORM ── */
+  #waveform-area {
+    flex: 0 0 auto; padding: 0 40px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  #waveform-canvas { width: 100%; max-width: 520px; height: 48px; opacity: 0; transition: opacity .4s; }
+  #waveform-canvas.active { opacity: 1; }
+  .mic-btn {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--teal-dim); border: 2px solid var(--teal);
+    color: var(--teal); font-size: 20px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s; position: relative;
+  }
+  .mic-btn:hover { background: var(--teal-glow); box-shadow: 0 0 20px var(--teal-glow); }
+  .mic-btn.listening {
+    background: rgba(255,77,109,0.15); border-color: var(--red);
+    color: var(--red); animation: mic-pulse .8s ease-in-out infinite;
+  }
+  @keyframes mic-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,77,109,0.4)} 50%{box-shadow:0 0 0 12px rgba(255,77,109,0)} }
+  .kryptonit-btn {
+    position: absolute; right: -64px; top: 0;
+    background: rgba(255,77,109,0.1); border: 1px solid rgba(255,77,109,0.3);
+    color: var(--red); border-radius: 8px; padding: 6px 10px;
+    font-size: 11px; font-weight: 700; letter-spacing: .05em; cursor: pointer;
+    transition: all .2s; text-transform: uppercase;
+  }
+  .kryptonit-btn:hover { background: rgba(255,77,109,0.25); box-shadow: 0 0 12px rgba(255,77,109,0.3); }
+
+  /* ── INPUT BAR ── */
+  #input-area {
+    flex: 0 0 auto; padding: 12px 32px 20px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .input-row {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 16px; padding: 10px 16px;
+    transition: border-color .2s;
+  }
+  .input-row:focus-within { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-dim); }
+  #task-input {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--text); font-size: 15px; resize: none; min-height: 24px; max-height: 80px;
+    font-family: inherit;
+  }
+  #task-input::placeholder { color: var(--text3); }
+  .send-btn {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: var(--teal); border: none; color: #050a0e;
+    font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all .2s; flex-shrink: 0;
+  }
+  .send-btn:hover { background: var(--teal2); transform: scale(1.05); }
+  .send-btn:disabled { background: var(--text3); cursor: not-allowed; transform: none; }
+  .hint-text { font-size: 11px; color: var(--text3); text-align: center; }
+  kbd {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 5px; font-size: 10px; font-family: monospace;
+  }
+
+  /* ── CAPABILITIES ── */
+  #capabilities {
+    position: absolute; left: 80px; bottom: 100px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px; width: 220px;
+    backdrop-filter: blur(12px);
+  }
+  .cap-title { font-size: 12px; font-weight: 700; color: var(--text2); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .cap-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .cap-icon { width: 28px; height: 28px; border-radius: 8px; background: var(--teal-dim); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .cap-name { font-size: 12px; font-weight: 600; color: var(--text); }
+  .cap-desc { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .sys-mode { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .sys-mode-label { font-size: 11px; color: var(--text3); }
+  .sys-mode-value { font-size: 12px; font-weight: 700; color: var(--teal); }
+
+  /* ── RIGHT PANEL ── */
+  #right-panel {
+    background: var(--bg2); border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; padding: 20px 18px; gap: 20px;
+    overflow-y: auto; overflow-x: hidden;
+  }
+  #right-panel::-webkit-scrollbar { width: 4px; }
+  #right-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .panel-section { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .section-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .section-action { font-size: 11px; color: var(--teal); cursor: pointer; background: none; border: none; font-family: inherit; }
+
+  /* Status */
+  .stat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .stat-label { font-size: 12px; color: var(--text2); flex: 0 0 90px; }
+  .stat-bar { flex: 1; height: 3px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+  .stat-fill { height: 100%; background: var(--teal); border-radius: 2px; transition: width 1s ease; position: relative; }
+  .stat-fill::after { content: ''; position: absolute; right: 0; top: -2px; width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
+  .stat-pct { font-size: 12px; color: var(--text2); flex: 0 0 36px; text-align: right; }
+  .status-ok { font-size: 11px; color: var(--teal); margin-top: 4px; }
+  .status-ok::before { content: '●'; margin-right: 6px; }
+
+  /* Shortcuts */
+  .shortcuts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .shortcut-btn {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text2); font-family: inherit;
+    transition: all .2s; text-align: left;
+  }
+  .shortcut-btn:hover { background: var(--teal-dim); border-color: var(--teal); color: var(--text); }
+  .shortcut-icon { font-size: 15px; }
+
+  /* Activity */
+  .activity-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .act-time { font-size: 11px; color: var(--text3); flex: 0 0 40px; margin-top: 1px; }
+  .act-content { flex: 1; }
+  .act-text { font-size: 12px; color: var(--text2); line-height: 1.4; }
+  .act-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); flex-shrink: 0; margin-top: 5px; }
+
+  /* Tip */
+  .tip-card { background: var(--teal-dim); border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: flex; align-items: flex-start; gap: 10px; }
+  .tip-icon { font-size: 18px; margin-top: 1px; }
+  .tip-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; }
+  .tip-text { font-size: 12px; color: var(--text2); margin-top: 3px; line-height: 1.4; }
+
+  /* ── MODALS ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(5,10,14,0.8); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center; z-index: 100;
+    opacity: 0; pointer-events: none; transition: opacity .3s;
+  }
+  .modal-overlay.visible { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--bg2); border: 1px solid rgba(255,77,109,0.4);
+    border-radius: 18px; padding: 28px; max-width: 420px; width: 90%;
+    box-shadow: 0 0 40px rgba(255,77,109,0.15);
+  }
+  .modal h3 { font-size: 16px; color: var(--red); margin-bottom: 8px; }
+  .modal p { font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .modal-params { background: var(--bg3); border-radius: 10px; padding: 12px; margin: 12px 0; font-family: monospace; font-size: 12px; color: var(--teal); max-height: 120px; overflow-y: auto; }
+  .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+  .btn-confirm { flex: 1; background: rgba(6,214,160,0.15); border: 1px solid var(--green); color: var(--green); border-radius: 10px; padding: 10px; cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit; transition: all .2s; }
+  .btn-confirm:hover { background: rgba(6,214,160,0.3); }
+  .btn-cancel { flex: 1; background: rgba(255,77,109,0.1); border: 1px solid var(--red); color: var(--red); border-radius: 10px; padding: 10px; cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit; transition: all .2s; }
+  .btn-cancel:hover { background: rgba(255,77,109,0.25); }
+
+  /* Download banner */
+  .download-banner {
+    background: var(--teal-dim); border: 1px solid var(--teal);
+    border-radius: 10px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: var(--teal); margin-top: 8px;
+    animation: slide-in .3s ease;
+  }
+  @keyframes slide-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+  .download-banner a { color: var(--teal); text-decoration: underline; cursor: pointer; }
+
+  /* Kryptonit flash */
+  .kryptonit-flash {
+    position: fixed; inset: 0; background: rgba(255,77,109,0.12);
+    pointer-events: none; z-index: 50;
+    animation: flash .6s ease; opacity: 0;
+  }
+  @keyframes flash { 0%{opacity:1} 100%{opacity:0} }
+
+  /* Thought bubble */
+  .thought-bubble {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 14px; font-size: 12px;
+    color: var(--text2); max-width: 400px; text-align: center;
+    backdrop-filter: blur(8px); opacity: 0; transition: opacity .4s;
+    pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .thought-bubble.visible { opacity: 1; }
+
+  /* ── RESPONSIVE (iPad) ── */
+  @media (max-width: 900px) {
+    #app { grid-template-columns: var(--sidebar-w) 1fr; }
+    #right-panel { display: none; }
+    #capabilities { display: none; }
+    #hero h1 { font-size: 28px; }
+  }
+  @media (max-width: 600px) {
+    #app { grid-template-columns: 1fr; }
+    #sidebar { display: none; }
+    #main-top { padding: 16px 16px 0; }
+    #hero { padding: 8px 16px 0; }
+    #input-area { padding: 8px 12px 16px; }
+    #waveform-area { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── SIDEBAR ── -->
+  <nav id="sidebar">
+    <div class="logo-orb"></div>
+    <button class="nav-btn active" title="Dashboard">⊞</button>
+    <button class="nav-btn" title="Chat">💬</button>
+    <button class="nav-btn" title="Sprache">🎙</button>
+    <button class="nav-btn" title="Shop">🛒</button>
+    <button class="nav-btn" title="Favoriten">✦</button>
+    <button class="nav-btn" title="Einstellungen" onclick="openSettings()">⚙</button>
+    <div class="sidebar-dot"></div>
+  </nav>
+
+  <!-- ── MAIN ── -->
+  <main id="main">
+    <div id="main-top">
+      <div class="status-badge">
+        <div class="status-dot offline" id="status-dot"></div>
+        <span id="status-label">SYSTEM OFFLINE</span>
+      </div>
+    </div>
+
+    <div id="hero">
+      <h1>Bereit wenn<br><span>du bereit bist.</span></h1>
+      <p>Ich bin hier um zu helfen, zu unterstützen und zu vereinfachen.</p>
+    </div>
+
+    <div class="model-card">
+      <div class="model-spinner"></div>
+      <div>
+        <div class="model-label">Modell-Status</div>
+        <div class="model-value" id="model-status">INITIALISIERT</div>
+      </div>
+    </div>
+
+    <!-- ORB -->
+    <div id="orb-area">
+      <div class="thought-bubble" id="thought-bubble"></div>
+      <canvas id="orb-canvas"></canvas>
+      <div class="status-text" id="status-text"></div>
+    </div>
+
+    <!-- WAVEFORM + MIC -->
+    <div id="waveform-area">
+      <canvas id="waveform-canvas"></canvas>
+      <div style="position:relative;display:flex;align-items:center;">
+        <button class="mic-btn" id="mic-btn" title="Spracheingabe" onclick="toggleListening()">🎙</button>
+        <button class="kryptonit-btn" id="kryptonit-btn" onclick="sendKryptonit()">⬛ KRYPTONIT</button>
+      </div>
+    </div>
+
+    <!-- INPUT -->
+    <div id="input-area">
+      <div class="input-row">
+        <textarea id="task-input" placeholder="Frag mich alles… (oder sag »ZERO«)" rows="1"></textarea>
+        <button class="send-btn" id="send-btn" onclick="sendTask()">▶</button>
+      </div>
+      <div id="downloads-area"></div>
+      <div class="hint-text">Drücke <kbd>Enter</kbd> zum Senden · <kbd>Shift+Enter</kbd> für neue Zeile · Sage <kbd>ZERO</kbd> für Spracheingabe</div>
+    </div>
+
+    <!-- CAPABILITIES (float) -->
+    <div id="capabilities">
+      <div class="cap-title">Fähigkeiten</div>
+      <div class="cap-item"><div class="cap-icon">❓</div><div><div class="cap-name">Fragen beantworten</div><div class="cap-desc">Informationen & Erklärungen</div></div></div>
+      <div class="cap-item"><div class="cap-icon">📊</div><div><div class="cap-name">Daten analysieren</div><div class="cap-desc">Erkenntnisse extrahieren</div></div></div>
+      <div class="cap-item"><div class="cap-icon">💡</div><div><div class="cap-name">Ideen generieren</div><div class="cap-desc">Brainstormen & erstellen</div></div></div>
+      <div class="cap-item"><div class="cap-icon">⚡</div><div><div class="cap-name">Aufgaben automatisieren</div><div class="cap-desc">Abläufe optimieren</div></div></div>
+      <div class="cap-item"><div class="cap-icon">🧠</div><div><div class="cap-name">Lernen & anpassen</div><div class="cap-desc">Kontinuierlich verbessern</div></div></div>
+      <div class="sys-mode">
+        <span class="sys-mode-label">⚡ System-Modus</span>
+        <span class="sys-mode-value">LEISTUNG</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── RIGHT PANEL ── -->
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="section-header">
+        <span class="section-title">System-Status</span>
+        <button class="section-action">⋯</button>
+      </div>
+      <div class="stat-row"><span class="stat-label">CPU</span><div class="stat-bar"><div class="stat-fill" id="stat-cpu" style="width:23%"></div></div><span class="stat-pct" id="pct-cpu">23%</span></div>
+      <div class="stat-row"><span class="stat-label">Arbeitsspeicher</span><div class="stat-bar"><div class="stat-fill" id="stat-mem" style="width:41%"></div></div><span class="stat-pct" id="pct-mem">41%</span></div>
+      <div class="stat-row"><span class="stat-label">Netzwerk</span><div class="stat-bar"><div class="stat-fill" id="stat-net" style="width:18%"></div></div><span class="stat-pct" id="pct-net">18%</span></div>
+      <div class="stat-row"><span class="stat-label">KI-Engine</span><div class="stat-bar"><div class="stat-fill" id="stat-ai" style="width:0%"></div></div><span class="stat-pct" id="pct-ai">–</span></div>
+      <div class="status-ok" id="sys-ok-text">Demo-Modus aktiv</div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-header">
+        <span class="section-title">Schnellzugriff</span>
+        <button class="section-action">+</button>
+      </div>
+      <div class="shortcuts-grid">
+        <button class="shortcut-btn" onclick="quickTask('Fasse die letzten 5 ungelesenen E-Mails zusammen')"><span class="shortcut-icon">📧</span>E-Mails</button>
+        <button class="shortcut-btn" onclick="quickTask('Zeige aktuelle Wix-Bestellungen aus dem S-LOGIC 3D Shop')"><span class="shortcut-icon">🛒</span>Bestellungen</button>
+        <button class="shortcut-btn" onclick="quickTask('Erkläre mir den aktuellen Desktop-Zustand')"><span class="shortcut-icon">🖥</span>Desktop</button>
+        <button class="shortcut-btn" onclick="quickTask('Erstelle eine Zusammenfassung meiner heutigen Aufgaben')"><span class="shortcut-icon">📝</span>Aufgaben</button>
+        <button class="shortcut-btn" onclick="quickTask('Schreibe ein Word-Dokument mit einer Produktbeschreibung für S-LOGIC 3D')"><span class="shortcut-icon">📄</span>Word-Dok.</button>
+        <button class="shortcut-btn" onclick="quickTask('Analysiere die Verkaufsdaten und erstelle eine Excel-Tabelle')"><span class="shortcut-icon">📊</span>Excel</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-header">
+        <span class="section-title">Aktivität</span>
+        <button class="section-action" onclick="clearActivity()">Leeren</button>
+      </div>
+      <div id="activity-list">
+        <div class="activity-item">
+          <span class="act-time" id="demo-time1">–</span>
+          <div class="act-content"><div class="act-text">ZERO 2.0 bereit</div></div>
+          <div class="act-dot"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip-card">
+      <span class="tip-icon">✦</span>
+      <div>
+        <div class="tip-title">Tipp des Tages</div>
+        <div class="tip-text" id="tip-text">Sage "ZERO" um die Spracheingabe zu aktivieren. Sage "Kryptonit" um alle Aktionen sofort zu stoppen.</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ── BESTÄTIGUNGS-MODAL ── -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <h3>⚠️ ROT-TIER Bestätigung</h3>
+    <p id="confirm-msg">Diese Aktion ist irreversibel und erfordert deine Bestätigung.</p>
+    <div class="modal-params" id="confirm-params"></div>
+    <div class="modal-btns">
+      <button class="btn-confirm" onclick="resolveConfirm(true)">✓ Bestätigen</button>
+      <button class="btn-cancel" onclick="resolveConfirm(false)">✗ Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── KRYPTONIT FLASH ── -->
+<div class="kryptonit-flash" id="kryptonit-flash" style="display:none"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+// KONFIGURATION
+// ══════════════════════════════════════════════════
+const WS_URL = (() => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('ws') || `ws://${window.location.hostname}:8765/ws`;
+})();
+
+const SERVER_BASE = (() => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('base') || `http://${window.location.hostname}:8765`;
+})();
+
+const TIPS = [
+  'Sage "ZERO" um die Spracheingabe zu aktivieren.',
+  'Sage "Kryptonit" um alle Aktionen sofort zu stoppen.',
+  'Nutze Schnellzugriff-Buttons für häufige Aufgaben.',
+  'Wix-Bestellungen abrufen mit: "Zeige aktuelle Bestellungen"',
+  'Word-Dokumente werden direkt als Download bereitgestellt.',
+  'ZERO merkt sich wichtige Infos im Obsidian-Vault.',
+];
+
+// ══════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════
+let ws = null;
+let wsConnected = false;
+let listening = false;
+let recognition = null;
+let audioCtx = null;
+let analyser = null;
+let micStream = null;
+let orbAnimId = null;
+let pendingConfirmId = null;
+const activityLog = [];
+
+// ══════════════════════════════════════════════════
+// PARTICLE ORB
+// ══════════════════════════════════════════════════
+class ParticleOrb {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.N = 180;
+    this.R = 0;
+    this.points = [];
+    this.angleY = 0;
+    this.angleX = 0;
+    this.pulseScale = 1;
+    this.pulsing = false;
+    this.build();
+  }
+
+  resize(r) {
+    this.R = r;
+    this.canvas.width = r * 2 + 60;
+    this.canvas.height = r * 2 + 60;
+  }
+
+  build() {
+    this.points = [];
+    const phi = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < this.N; i++) {
+      const y = 1 - (i / (this.N - 1)) * 2;
+      const rr = Math.sqrt(1 - y * y);
+      const theta = phi * i;
+      this.points.push([Math.cos(theta) * rr, y, Math.sin(theta) * rr]);
+    }
+  }
+
+  setPulsing(v) { this.pulsing = v; }
+
+  draw(t) {
+    const { ctx, canvas, R } = this;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+
+    this.angleY += this.pulsing ? 0.008 : 0.004;
+    this.angleX = Math.sin(t * 0.0003) * 0.25;
+    if (this.pulsing) {
+      this.pulseScale = 1 + Math.sin(t * 0.004) * 0.06;
+    } else {
+      this.pulseScale += (1 - this.pulseScale) * 0.05;
+    }
+
+    const cosY = Math.cos(this.angleY), sinY = Math.sin(this.angleY);
+    const cosX = Math.cos(this.angleX), sinX = Math.sin(this.angleX);
+    const scale = R * this.pulseScale;
+
+    const projected = this.points.map(([px, py, pz]) => {
+      const rx = px * cosY - pz * sinY;
+      const rz = px * sinY + pz * cosY;
+      const ry = py * cosX - rz * sinX;
+      const rz2 = py * sinX + rz * cosX;
+      const depth = (rz2 + 1) / 2;
+      return { sx: cx + rx * scale, sy: cy + ry * scale, depth };
+    }).sort((a, b) => a.depth - b.depth);
+
+    // Glow halo
+    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.1);
+    gradient.addColorStop(0, 'rgba(0,221,180,0.03)');
+    gradient.addColorStop(0.7, 'rgba(0,221,180,0.08)');
+    gradient.addColorStop(1, 'transparent');
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // Particles
+    for (const p of projected) {
+      const a = p.depth * 0.85 + 0.15;
+      const size = p.depth * 2.5 + 0.5;
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0,221,180,${a})`;
+      ctx.fill();
+      if (p.depth > 0.7) {
+        ctx.beginPath();
+        ctx.arc(p.sx, p.sy, size * 2, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0,221,180,${(p.depth - 0.7) * 0.15})`;
+        ctx.fill();
+      }
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════
+// WAVEFORM
+// ══════════════════════════════════════════════════
+class Waveform {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.demoPhase = 0;
+    this.active = false;
+  }
+
+  drawDemo(t) {
+    const { ctx, canvas } = this;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!this.active) return;
+    const W = canvas.width, H = canvas.height;
+    const bars = 60;
+    const bw = W / bars;
+    this.demoPhase += 0.05;
+    for (let i = 0; i < bars; i++) {
+      const h = (Math.sin(i * 0.4 + this.demoPhase) * 0.5 + 0.5) *
+                (Math.sin(i * 0.15 + this.demoPhase * 0.7) * 0.3 + 0.7) *
+                (H * 0.8);
+      const y = (H - h) / 2;
+      const alpha = 0.4 + (i / bars) * 0.6;
+      ctx.fillStyle = `rgba(0,221,180,${alpha})`;
+      ctx.beginPath();
+      ctx.roundRect(i * bw + 1, y, bw - 2, h, 2);
+      ctx.fill();
+    }
+  }
+
+  drawReal(dataArray) {
+    const { ctx, canvas } = this;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const W = canvas.width, H = canvas.height;
+    const bars = dataArray.length;
+    const bw = W / bars;
+    for (let i = 0; i < bars; i++) {
+      const h = (dataArray[i] / 255) * H * 0.85;
+      const y = (H - h) / 2;
+      const alpha = 0.3 + (dataArray[i] / 255) * 0.7;
+      ctx.fillStyle = `rgba(0,221,180,${alpha})`;
+      ctx.beginPath();
+      ctx.roundRect(i * bw + 1, y, bw - 2, h, 2);
+      ctx.fill();
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════
+// UI INIT
+// ══════════════════════════════════════════════════
+const orbCanvas = document.getElementById('orb-canvas');
+const waveCanvas = document.getElementById('waveform-canvas');
+const orb = new ParticleOrb(orbCanvas);
+const wave = new Waveform(waveCanvas);
+
+function resizeOrb() {
+  const area = document.getElementById('orb-area');
+  const rect = area.getBoundingClientRect();
+  const r = Math.min(rect.width * 0.38, rect.height * 0.42, 180);
+  orb.resize(r);
+  waveCanvas.width = waveCanvas.offsetWidth || 520;
+  waveCanvas.height = 48;
+}
+
+function animate(t) {
+  orb.draw(t);
+  if (!analyser) {
+    wave.drawDemo(t);
+  } else {
+    const arr = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(arr);
+    wave.drawReal(arr);
+  }
+  orbAnimId = requestAnimationFrame(animate);
+}
+
+// ══════════════════════════════════════════════════
+// WEBSOCKET
+// ══════════════════════════════════════════════════
+function connectWS() {
+  try {
+    ws = new WebSocket(WS_URL);
+  } catch (e) {
+    setStatus('offline');
+    return;
+  }
+
+  ws.onopen = () => {
+    wsConnected = true;
+    setStatus('online');
+    updateStatAi(100);
+    addActivity('Verbunden mit ZERO 2.0 Server');
+  };
+
+  ws.onclose = () => {
+    wsConnected = false;
+    setStatus('offline');
+    updateStatAi(0);
+    addActivity('Verbindung getrennt — Wiederverbindung in 5s…');
+    setTimeout(connectWS, 5000);
+  };
+
+  ws.onerror = () => {
+    wsConnected = false;
+    setStatus('offline');
+  };
+
+  ws.onmessage = (ev) => {
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch { return; }
+    handleServerMessage(msg);
+  };
+}
+
+function handleServerMessage(msg) {
+  const { type, data } = msg;
+
+  switch (type) {
+    case 'system':
+      document.getElementById('model-status').textContent = 'OPTIMAL';
+      addActivity('ZERO 2.0 bereit — Modell aktiv');
+      break;
+
+    case 'thought':
+      showThought(data.thought || '');
+      orb.setPulsing(true);
+      break;
+
+    case 'tool_call':
+      setStatus('thinking', `Führt aus: ${data.tool_name}`);
+      addActivity(`Tool: ${data.tool_name}`);
+      break;
+
+    case 'tool_result':
+      if (!data.is_success) {
+        addActivity(`Fehler: ${(data.error || '').slice(0, 60)}`);
+      }
+      break;
+
+    case 'done':
+      orb.setPulsing(false);
+      setStatus('online');
+      hideThought();
+      addActivity(`Erledigt: ${(data.content || '').slice(0, 60)}`);
+      document.getElementById('send-btn').disabled = false;
+      break;
+
+    case 'error':
+      orb.setPulsing(false);
+      setStatus('online');
+      hideThought();
+      addActivity(`Fehler: ${(data.error || '').slice(0, 80)}`);
+      document.getElementById('send-btn').disabled = false;
+      break;
+
+    case 'kryptonit':
+      triggerKryptonit();
+      break;
+
+    case 'file':
+      showDownload(data.url, data.name);
+      break;
+
+    case 'audio':
+      playAudio(data.base64, data.format);
+      break;
+
+    case 'confirmation_request':
+      showConfirmModal(data.id, data.tool_name, data.params, data.message);
+      break;
+
+    case 'pong':
+      break;
+  }
+}
+
+function sendTask() {
+  const input = document.getElementById('task-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  if (text.toLowerCase().includes('kryptonit')) {
+    sendKryptonit();
+    input.value = '';
+    return;
+  }
+
+  if (!wsConnected) {
+    addActivity('Server nicht verbunden — Demo-Modus aktiv');
+    demoResponse(text);
+    input.value = '';
+    return;
+  }
+
+  ws.send(JSON.stringify({ type: 'task', data: { content: text } }));
+  addActivity(`Du: ${text.slice(0, 60)}`);
+  input.value = '';
+  input.style.height = 'auto';
+  document.getElementById('send-btn').disabled = true;
+  orb.setPulsing(true);
+  setStatus('thinking', 'ZERO denkt nach…');
+}
+
+function quickTask(text) {
+  document.getElementById('task-input').value = text;
+  sendTask();
+}
+
+function sendKryptonit() {
+  triggerKryptonit();
+  if (wsConnected) {
+    ws.send(JSON.stringify({ type: 'kryptonit', data: {} }));
+  }
+}
+
+// ══════════════════════════════════════════════════
+// VOICE (Wake Word + Input)
+// ══════════════════════════════════════════════════
+function toggleListening() {
+  if (listening) {
+    stopListening();
+  } else {
+    startListening();
+  }
+}
+
+function startListening() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    addActivity('Web Speech API nicht verfügbar in diesem Browser.');
+    return;
+  }
+  if (recognition) recognition.stop();
+  recognition = new SR();
+  recognition.lang = 'de-DE';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  recognition.onstart = () => {
+    listening = true;
+    document.getElementById('mic-btn').classList.add('listening');
+    document.getElementById('waveform-canvas').classList.add('active');
+    wave.active = true;
+    setStatus('listening', 'Hört zu…');
+    startMicAnalyser();
+  };
+
+  recognition.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    const combined = (final + interim).toLowerCase();
+    if (combined.includes('kryptonit')) {
+      sendKryptonit();
+      stopListening();
+      return;
+    }
+    if (final.trim()) {
+      document.getElementById('task-input').value = final.trim();
+    }
+  };
+
+  recognition.onend = () => {
+    const text = document.getElementById('task-input').value.trim();
+    if (text) sendTask();
+    stopListening();
+  };
+
+  recognition.onerror = () => stopListening();
+  recognition.start();
+
+  // Backup: start wake-word detection
+  startWakeWordDetection();
+}
+
+function stopListening() {
+  listening = false;
+  document.getElementById('mic-btn').classList.remove('listening');
+  document.getElementById('waveform-canvas').classList.remove('active');
+  wave.active = false;
+  if (recognition) { recognition.stop(); recognition = null; }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  analyser = null;
+  setStatus(wsConnected ? 'online' : 'offline');
+}
+
+async function startMicAnalyser() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const src = audioCtx.createMediaStreamSource(micStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 128;
+    src.connect(analyser);
+  } catch (e) {
+    // Kein Mikrofon — Demo-Waveform läuft weiter
+  }
+}
+
+function startWakeWordDetection() {
+  // Passive continuous detection for wake word
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  const wakeRec = new SR();
+  wakeRec.lang = 'de-DE';
+  wakeRec.continuous = true;
+  wakeRec.interimResults = true;
+  wakeRec.onresult = (e) => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript.toLowerCase();
+      if (t.includes('zero') && !listening) {
+        wakeRec.stop();
+        startListening();
+      }
+      if (t.includes('kryptonit')) {
+        sendKryptonit();
+        wakeRec.stop();
+      }
+    }
+  };
+  wakeRec.onerror = () => {};
+  try { wakeRec.start(); } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════
+// BESTÄTIGUNG MODAL
+// ══════════════════════════════════════════════════
+function showConfirmModal(id, toolName, params, message) {
+  pendingConfirmId = id;
+  document.getElementById('confirm-msg').textContent =
+    message || `Tool '${toolName}' erfordert Bestätigung.`;
+  document.getElementById('confirm-params').textContent =
+    JSON.stringify(params, null, 2);
+  document.getElementById('confirm-modal').classList.add('visible');
+}
+
+function resolveConfirm(confirmed) {
+  document.getElementById('confirm-modal').classList.remove('visible');
+  if (!wsConnected || !pendingConfirmId) return;
+  ws.send(JSON.stringify({
+    type: 'confirmation_response',
+    data: { id: pendingConfirmId, confirmed }
+  }));
+  pendingConfirmId = null;
+}
+
+// ══════════════════════════════════════════════════
+// AUDIO PLAYBACK
+// ══════════════════════════════════════════════════
+function playAudio(b64, format) {
+  try {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: `audio/${format}` });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.play().catch(() => {});
+    audio.onended = () => URL.revokeObjectURL(url);
+  } catch (e) {}
+}
+
+// ══════════════════════════════════════════════════
+// DOWNLOADS
+// ══════════════════════════════════════════════════
+function showDownload(url, name) {
+  const area = document.getElementById('downloads-area');
+  const banner = document.createElement('div');
+  banner.className = 'download-banner';
+  const fullUrl = url.startsWith('http') ? url : `${SERVER_BASE}${url}`;
+  banner.innerHTML = `📎 Datei bereit: <a href="${fullUrl}" download="${name}">${name}</a>`;
+  area.appendChild(banner);
+  addActivity(`Download bereit: ${name}`);
+}
+
+// ══════════════════════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════════════════════
+function setStatus(mode, label) {
+  const dot = document.getElementById('status-dot');
+  const lbl = document.getElementById('status-label');
+  const txt = document.getElementById('status-text');
+  dot.className = 'status-dot';
+  switch (mode) {
+    case 'online':
+      dot.classList.add(''); // default teal
+      lbl.textContent = 'SYSTEM ONLINE';
+      setStatusText('');
+      break;
+    case 'offline':
+      dot.classList.add('offline');
+      lbl.textContent = 'SYSTEM OFFLINE';
+      setStatusText('');
+      break;
+    case 'thinking':
+      dot.classList.add('thinking');
+      lbl.textContent = 'ZERO DENKT…';
+      setStatusText(label || 'Denkt nach…');
+      break;
+    case 'listening':
+      dot.classList.add('listening');
+      lbl.textContent = 'HÖRT ZU…';
+      setStatusText('Hört zu…');
+      break;
+  }
+}
+
+function setStatusText(text) {
+  const el = document.getElementById('status-text');
+  el.textContent = text;
+  el.classList.toggle('visible', !!text);
+}
+
+function showThought(text) {
+  const el = document.getElementById('thought-bubble');
+  el.textContent = text.slice(0, 80);
+  el.classList.add('visible');
+}
+
+function hideThought() {
+  document.getElementById('thought-bubble').classList.remove('visible');
+}
+
+function triggerKryptonit() {
+  orb.setPulsing(false);
+  setStatus(wsConnected ? 'online' : 'offline');
+  hideThought();
+  document.getElementById('send-btn').disabled = false;
+  addActivity('🛑 KRYPTONIT — alle Aktionen gestoppt');
+  const flash = document.getElementById('kryptonit-flash');
+  flash.style.display = 'block';
+  setTimeout(() => { flash.style.display = 'none'; }, 700);
+}
+
+function addActivity(text) {
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  activityLog.unshift({ time, text });
+  const list = document.getElementById('activity-list');
+  const item = document.createElement('div');
+  item.className = 'activity-item';
+  item.innerHTML = `
+    <span class="act-time">${time}</span>
+    <div class="act-content"><div class="act-text">${text.slice(0,80)}</div></div>
+    <div class="act-dot"></div>
+  `;
+  list.prepend(item);
+  while (list.children.length > 12) list.removeChild(list.lastChild);
+}
+
+function clearActivity() {
+  document.getElementById('activity-list').innerHTML = '';
+  addActivity('Aktivitäts-Log geleert');
+}
+
+function updateStatAi(pct) {
+  document.getElementById('stat-ai').style.width = pct + '%';
+  document.getElementById('pct-ai').textContent = pct + '%';
+  document.getElementById('sys-ok-text').textContent =
+    pct > 0 ? '● Alle Systeme operativ' : 'Demo-Modus aktiv';
+}
+
+function demoResponse(text) {
+  setTimeout(() => {
+    showThought('Analysiere Anfrage im Demo-Modus…');
+    orb.setPulsing(true);
+  }, 300);
+  setTimeout(() => {
+    hideThought();
+    orb.setPulsing(false);
+    setStatus('online');
+    addActivity(`Demo: "${text.slice(0,50)}" — Server nicht verbunden`);
+    document.getElementById('send-btn').disabled = false;
+  }, 2500);
+}
+
+function openSettings() {
+  const url = prompt('WebSocket-URL des ZERO-Servers:', WS_URL);
+  if (url) window.location.href = `?ws=${encodeURIComponent(url)}`;
+}
+
+// ══════════════════════════════════════════════════
+// MOCK SYSTEM STATS (Demo)
+// ══════════════════════════════════════════════════
+function updateMockStats() {
+  if (wsConnected) return;
+  const vals = {
+    'stat-cpu': Math.round(15 + Math.random() * 30),
+    'stat-mem': Math.round(35 + Math.random() * 20),
+    'stat-net': Math.round(5 + Math.random() * 25),
+  };
+  for (const [id, v] of Object.entries(vals)) {
+    document.getElementById(id).style.width = v + '%';
+    document.getElementById('pct-' + id.split('-')[1]).textContent = v + '%';
+  }
+}
+
+// Rotating tips
+let tipIdx = 0;
+function rotateTip() {
+  document.getElementById('tip-text').textContent = TIPS[tipIdx % TIPS.length];
+  tipIdx++;
+}
+
+// ══════════════════════════════════════════════════
+// INPUT: auto-resize + Enter send
+// ══════════════════════════════════════════════════
+const taskInput = document.getElementById('task-input');
+taskInput.addEventListener('input', () => {
+  taskInput.style.height = 'auto';
+  taskInput.style.height = Math.min(taskInput.scrollHeight, 80) + 'px';
+});
+taskInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendTask();
+  }
+});
+
+// ══════════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════════
+window.addEventListener('resize', () => { resizeOrb(); });
+window.addEventListener('load', () => {
+  resizeOrb();
+  requestAnimationFrame(animate);
+  connectWS();
+  document.getElementById('demo-time1').textContent =
+    new Date().toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
+  setInterval(updateMockStats, 3000);
+  setInterval(rotateTip, 15000);
+  // Start passive wake word detection
+  startWakeWordDetection();
+});
+</script>
+</body>
+</html>
