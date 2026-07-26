@@ -747,6 +747,7 @@ function handleServerMessage(msg) {
       hideThought();
       addActivity(`Erledigt: ${(data.content || '').slice(0, 60)}`);
       document.getElementById('send-btn').disabled = false;
+      speakText(data.content || '');
       break;
 
     case 'error':
@@ -952,19 +953,44 @@ function resolveConfirm(confirmed) {
 }
 
 // ══════════════════════════════════════════════════
-// AUDIO PLAYBACK
+// TTS — Browser SpeechSynthesis (kein API-Key)
 // ══════════════════════════════════════════════════
-function playAudio(b64, format) {
-  try {
-    const binary = atob(b64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const blob = new Blob([bytes], { type: `audio/${format}` });
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audio.play().catch(() => {});
-    audio.onended = () => URL.revokeObjectURL(url);
-  } catch (e) {}
+let ttsVoice = null;
+
+function loadVoices() {
+  const voices = speechSynthesis.getVoices();
+  if (!voices.length) return;
+  // Priorität: 1. Deutsche Microsoft-Stimme, 2. Jede deutsche Stimme, 3. Erste verfügbare
+  ttsVoice =
+    voices.find(v => v.name.includes('Microsoft') && v.lang.startsWith('de')) ||
+    voices.find(v => v.lang.startsWith('de')) ||
+    voices.find(v => v.name.includes('Microsoft')) ||
+    voices[0] || null;
+}
+
+if (typeof speechSynthesis !== 'undefined') {
+  speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
+}
+
+function speakText(text) {
+  if (!window.speechSynthesis || !text) return;
+  // Markdown-Syntax entfernen bevor gesprochen wird
+  const clean = text
+    .replace(/#{1,6}\s/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/`(.+?)`/g, '$1')
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+    .slice(0, 400);
+  speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(clean);
+  utt.lang = 'de-DE';
+  utt.rate = 0.95;
+  utt.pitch = 0.88;
+  utt.volume = 1;
+  if (ttsVoice) utt.voice = ttsVoice;
+  speechSynthesis.speak(utt);
 }
 
 // ══════════════════════════════════════════════════

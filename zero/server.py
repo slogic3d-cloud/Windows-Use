@@ -25,7 +25,6 @@ from windows_use.agent.security.service import SecurityRegistry
 from windows_use.agent.tools import BUILTIN_TOOLS, EXPERIMENTAL_TOOLS
 from windows_use.agent.tools.mcp_tools import MCP_TOOLS
 from windows_use.providers.anthropic import ChatAnthropic
-from windows_use.providers.elevenlabs import TTSElevenLabs
 from zero.config import ZeroConfig
 
 DOWNLOADS_DIR = Path("zero_downloads")
@@ -95,13 +94,6 @@ async def websocket_endpoint(ws: WebSocket):
     confirm_mgr = ConfirmationManager()
     agent_task: asyncio.Task | None = None
     security_registry: SecurityRegistry | None = None
-    tts: TTSElevenLabs | None = None
-
-    if cfg.elevenlabs_api_key:
-        tts = TTSElevenLabs(
-            api_key=cfg.elevenlabs_api_key,
-            voice_id=cfg.elevenlabs_voice_id,
-        )
 
     # Initialmeldung an Client
     await ws.send_json(
@@ -111,7 +103,6 @@ async def websocket_endpoint(ws: WebSocket):
                 "status": "online",
                 "message": "ZERO 2.0 bereit.",
                 "model": cfg.anthropic_model,
-                "voice_id": cfg.elevenlabs_voice_id,
             },
         }
     )
@@ -136,31 +127,6 @@ async def websocket_endpoint(ws: WebSocket):
                         }
                     )
         await ws.send_json({"type": event.type.value, "data": data})
-
-        # TTS für DONE-Events
-        if event.type == EventType.DONE and tts:
-            answer = data.get("content", "")
-            if answer and len(answer) < 500:
-                try:
-                    import tempfile, base64
-                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-                        tmp_path = f.name
-                    await tts.asynthesize(answer, tmp_path)
-                    audio_bytes = Path(tmp_path).read_bytes()
-                    await ws.send_json(
-                        {
-                            "type": "audio",
-                            "data": {
-                                "base64": base64.b64encode(audio_bytes).decode(),
-                                "format": "wav",
-                            },
-                        }
-                    )
-                    Path(tmp_path).unlink(missing_ok=True)
-                except Exception as e:
-                    await ws.send_json(
-                        {"type": "debug", "data": {"message": f"TTS-Fehler: {e}"}}
-                    )
 
     async def run_agent(task: str) -> None:
         nonlocal security_registry
